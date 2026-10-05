@@ -1,0 +1,1723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Ivy Lawson - Gallery</title>
+<link rel="icon" type="image/jpeg" href="./favicon.jpg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Press+Start+2P&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f5f0ea;
+    color: #1a1815;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .canvas-wrapper {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    cursor: grab;
+  }
+  .canvas-wrapper.dragging { cursor: grabbing; }
+  .canvas-wrapper canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Overlay UI */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 1.75rem 2.25rem;
+    pointer-events: none;
+  }
+  .overlay a { pointer-events: auto; }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #5a5650;
+    text-decoration: none;
+    letter-spacing: -0.01em;
+    transition: color 0.3s ease, transform 0.3s ease;
+  }
+  .back-btn:hover {
+    color: #1a1815;
+    transform: translateX(-3px);
+  }
+  .back-btn svg {
+    width: 16px; height: 16px;
+    transition: transform 0.3s ease;
+  }
+  .back-btn:hover svg { transform: translateX(-3px); }
+
+  .cross-mark {
+    font-weight: 300;
+    opacity: 0.4;
+    font-size: 1rem;
+  }
+
+  .footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .counter {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #5a5650;
+    letter-spacing: 0.04em;
+  }
+
+  .gallery-title {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 3;
+    font-size: clamp(1.2rem, 2vw, 2rem);
+    font-weight: 500;
+    color: #3a3530;
+    letter-spacing: -0.02em;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(10px);
+    animation: fadeInUp 1s ease 0.8s forwards;
+  }
+  @keyframes fadeInUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Lens Overlay */
+  #lensOverlay {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+    background: #f5f0ea; /* Same as background */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+  #lensOverlay.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  #lensCanvasContainer {
+    width: 100%;
+    height: 100%;
+  }
+  #lensCanvasContainer canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+  }
+  #lensCloseBtn {
+    position: absolute;
+    top: 1.5rem;
+    right: 2rem;
+    z-index: 11;
+    background: rgba(245, 240, 234, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    font-size: 1.75rem;
+    cursor: pointer;
+    color: #3a3530;
+    transition: transform 0.2s ease, color 0.2s ease, background 0.2s ease;
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+  #lensCloseBtn:hover {
+    transform: scale(1.08);
+    background: rgba(245, 240, 234, 1);
+    color: #1a1815;
+  }
+  #lensCloseBtn:active {
+    transform: scale(0.95);
+  }
+  .mobile-hint { display: none; }
+  .canvas-wrapper, #lensCanvasContainer { touch-action: none; }
+
+  /* Retro RPG Pixel Dialog */
+  .pixel-dialog {
+    position: absolute;
+    bottom: 5rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(16px);
+    width: min(90%, 640px);
+    background: rgba(8, 10, 14, 0.85); /* Deep cold dark blue/grey */
+    backdrop-filter: blur(12px) contrast(1.1);
+    -webkit-backdrop-filter: blur(12px) contrast(1.1);
+    /* Fragmented/Broken Pixel Border Effect */
+    border: 2px solid rgba(160, 175, 200, 0.4);
+    border-style: dashed solid solid dashed;
+    box-shadow: 2px 2px 0 0 rgba(0, 0, 0, 0.8), -1px -1px 0 0 rgba(200, 210, 230, 0.1);
+    color: #c8d2e0; /* Cold ashen grey-blue */
+    padding: 1.25rem 1.5rem;
+    z-index: 100; /* Ensure it's heavily layered above everything */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease, transform 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  .pixel-dialog.active {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(0);
+  }
+  .pixel-dialog:hover {
+    background: rgba(12, 14, 18, 0.90);
+    border-color: rgba(180, 195, 220, 0.6);
+  }
+  .pixel-dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px dashed rgba(160, 175, 200, 0.3);
+  }
+  .pixel-dialog-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .pixel-badge {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 0.55rem;
+    background: #c8d2e0; /* Ash blue */
+    color: #080a0e;
+    padding: 2px 6px;
+    line-height: 1.2;
+    display: inline-block;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+  .pixel-dialog-title {
+    font-family: 'Press Start 2P', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 0.75rem;
+    color: #ffd000;
+    letter-spacing: 0.05em;
+    text-shadow: 1px 1px 0 #000;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .pixel-dialog-step {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 0.65rem;
+    color: #b3aba2;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-left: 0.5rem;
+  }
+  .pixel-dialog-body {
+    min-height: 3.8rem;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", Roboto, sans-serif;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: #f5f0ea;
+    letter-spacing: 0.03em;
+    word-break: break-word;
+    display: block;
+    max-height: 40vh;
+    overflow-y: auto;
+  }
+  .pixel-dialog-text {
+    display: inline;
+  }
+  .pixel-cursor {
+    display: inline-block;
+    width: 8px;
+    height: 15px;
+    margin-left: 4px;
+    vertical-align: -2px;
+    background: #ffd000;
+    box-shadow: 1px 1px 0 #000;
+    animation: pixelCursorBlink 0.7s steps(2, start) infinite;
+  }
+  @keyframes pixelCursorBlink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+  .pixel-dialog-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.65rem;
+    padding-top: 0.4rem;
+    border-top: 1px solid rgba(245, 240, 234, 0.12);
+  }
+  .pixel-hint-tip {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 0.5rem;
+    color: rgba(245, 240, 234, 0.45);
+    letter-spacing: 0.06em;
+  }
+  .pixel-action-prompt {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 0.55rem;
+    color: #ffd000;
+    letter-spacing: 0.08em;
+    animation: pixelPromptBounce 1s ease-in-out infinite alternate;
+  }
+  @keyframes pixelPromptBounce {
+    from { transform: translateY(0); }
+    to { transform: translateY(-2px); }
+  }
+
+  @media (max-width: 768px), (pointer: coarse) {
+    html, body { height: 100dvh; overscroll-behavior: none; }
+    .overlay {
+      padding: calc(0.75rem + env(safe-area-inset-top)) calc(1.25rem + env(safe-area-inset-right)) calc(1.25rem + env(safe-area-inset-bottom)) calc(1.25rem + env(safe-area-inset-left));
+    }
+    .back-btn { min-height: 44px; min-width: 44px; }
+    .footer { justify-content: flex-start; }
+    .gallery-title { bottom: calc(1.25rem + env(safe-area-inset-bottom)); right: calc(1.25rem + env(safe-area-inset-right)); }
+    .mobile-hint {
+      display: block; position: fixed; left: 0; right: 0;
+      bottom: calc(4.5rem + env(safe-area-inset-bottom)); text-align: center;
+      color: #5a5650; font-size: 0.75rem; pointer-events: none;
+    }
+    #lensCloseBtn {
+      top: calc(0.75rem + env(safe-area-inset-top));
+      right: calc(0.75rem + env(safe-area-inset-right));
+      width: 48px;
+      height: 48px;
+      min-width: 48px;
+      min-height: 48px;
+      border-radius: 50%;
+      background: rgba(245, 240, 234, 0.92);
+    }
+    .pixel-dialog {
+      bottom: calc(0.85rem + env(safe-area-inset-bottom));
+      width: calc(100% - 1.5rem);
+      max-width: 500px;
+      padding: 0.75rem 0.9rem;
+      border-width: 2px;
+      outline-width: 2px;
+      outline-offset: -4px;
+      box-shadow: 0 4px 0 0 #1a1815, 0 8px 16px rgba(0, 0, 0, 0.5);
+    }
+    .pixel-dialog-header {
+      margin-bottom: 0.45rem;
+      padding-bottom: 0.35rem;
+    }
+    .pixel-dialog-title-wrap {
+      gap: 0.35rem;
+    }
+    .pixel-badge {
+      font-size: 0.46rem;
+      padding: 1px 4px;
+    }
+    .pixel-dialog-title {
+      font-size: 0.60rem;
+    }
+    .pixel-dialog-step {
+      font-size: 0.55rem;
+      margin-left: 0.35rem;
+    }
+    .pixel-dialog-body {
+      min-height: 3.2rem;
+      font-size: 0.85rem;
+      line-height: 1.55;
+    }
+    .pixel-cursor {
+      width: 7px;
+      height: 13px;
+    }
+    .pixel-dialog-footer {
+      margin-top: 0.45rem;
+      padding-top: 0.3rem;
+    }
+    .pixel-hint-tip {
+      font-size: 0.45rem;
+    }
+    .pixel-action-prompt {
+      font-size: 0.5rem;
+    }
+  }
+
+  @media (max-width: 360px) {
+    .pixel-dialog {
+      padding: 0.6rem 0.65rem;
+      bottom: calc(0.5rem + env(safe-area-inset-bottom));
+    }
+    .pixel-dialog-title-wrap {
+      gap: 0.25rem;
+    }
+    .pixel-badge {
+      font-size: 0.40rem;
+      padding: 1px 3px;
+    }
+    .pixel-dialog-title {
+      font-size: 0.48rem;
+      letter-spacing: 0.02em;
+    }
+    .pixel-dialog-step {
+      font-size: 0.46rem;
+      margin-left: 0.25rem;
+    }
+    .pixel-dialog-body {
+      font-size: 0.78rem;
+      line-height: 1.5;
+      min-height: 2.8rem;
+    }
+  }
+
+  @media (max-height: 560px) {
+    .pixel-dialog {
+      bottom: max(0.5rem, calc(0.4rem + env(safe-area-inset-bottom)));
+      padding: 0.6rem 0.85rem;
+    }
+    .pixel-dialog-header {
+      margin-bottom: 0.35rem;
+      padding-bottom: 0.25rem;
+    }
+    .pixel-dialog-body {
+      min-height: auto;
+      font-size: 0.85rem;
+      line-height: 1.45;
+    }
+    .pixel-dialog-footer {
+      margin-top: 0.35rem;
+      padding-top: 0.25rem;
+    }
+  }
+
+  @media (max-height: 400px) {
+    .pixel-dialog {
+      bottom: 0.35rem;
+      padding: 0.45rem 0.65rem;
+    }
+    .pixel-badge {
+      font-size: 0.42rem;
+      padding: 1px 3px;
+    }
+    .pixel-dialog-title {
+      font-size: 0.55rem;
+    }
+    .pixel-dialog-step {
+      font-size: 0.50rem;
+    }
+    .pixel-dialog-body {
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="canvas-wrapper" id="canvasWrapper"></div>
+
+<div class="overlay">
+  <header class="header">
+    <a class="back-btn" href="./index.html">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      Back
+    </a>
+    <span class="cross-mark">+</span>
+  </header>
+  <footer class="footer">
+    <div class="counter" id="counter"></div>
+  </footer>
+
+</div>
+
+<div class="gallery-title">My Memory</div>
+
+<!-- Lens Overlay Container -->
+<div id="lensOverlay">
+  <button id="lensCloseBtn" aria-label="关闭照片">&times;</button>
+  <div id="lensCanvasContainer"></div>
+
+  <!-- Retro RPG Pixel Dialog -->
+  <div id="pixelDialog" class="pixel-dialog" role="dialog" aria-live="polite">
+    <div class="pixel-dialog-header">
+      <div class="pixel-dialog-title-wrap">
+        <span class="pixel-badge">MSG</span>
+        <span class="pixel-dialog-title" id="pixelDialogTitle">ARCHIVE // 00</span>
+      </div>
+      <div class="pixel-dialog-step" id="pixelDialogStep">1 / 3</div>
+    </div>
+    <div class="pixel-dialog-body">
+      <span class="pixel-dialog-text" id="pixelDialogText"></span><span class="pixel-cursor" id="pixelCursor"></span>
+    </div>
+    <div class="pixel-dialog-footer">
+      <span class="pixel-hint-tip">PRESS / CLICK</span>
+      <span class="pixel-action-prompt" id="pixelActionPrompt">TYPING...</span>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from "three";
+
+(function () {
+  "use strict";
+
+  /* ── Image list (Original PNG) ── */
+  var IMAGES = [
+    "./img/1.webp", "./img/2.webp", "./img/3.webp", "./img/4.webp",
+    "./img/5.webp", "./img/6.webp", "./img/7.webp", "./img/8.webp",
+    "./img/9.webp", "./img/10.webp", "./img/11.webp", "./img/12.webp",
+    "./img/13.webp"
+  ];
+  var TOTAL = IMAGES.length;
+
+  document.getElementById("counter").textContent = "/" + TOTAL + " Photos";
+
+  /* ── Constants ── */
+  var PLANE_ASPECT = 5 / 3;
+  var GAP_RATIO    = 0.018;
+  var MAX_VEL      = 1.0;
+  var BASE_SPEED   = 0.08;   // slow auto-scroll (world units / s)
+  var isTouch = window.matchMedia("(pointer: coarse)").matches;
+
+  /* ── Three.js basics ── */
+  var wrap = document.getElementById("canvasWrapper");
+  var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  wrap.appendChild(renderer.domElement);
+
+  var scene  = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(48, 1, 0.1, 100);
+  camera.position.set(0, 0, 5);
+  
+  var raycaster = new THREE.Raycaster();
+  var pointer = new THREE.Vector2();
+
+  /* ── Shaders (Reel-Flux wave effect) ── */
+  var VS = [
+    "uniform float uVel;",
+    "uniform float uFreq;",
+    "uniform float uAmpY;",
+    "uniform float uAmpZ;",
+    "uniform float uTwist;",
+    "varying vec2 vUv;",
+    "void main(){",
+    "  vUv = uv;",
+    "  vec4 wp = modelMatrix * vec4(position,1.0);",
+    "  float ph = wp.x * uFreq;",
+    "  float s  = sin(ph);",
+    "  float c  = cos(ph);",
+    "  float dy = s * uVel * uAmpY;",
+    "  float dz = c * uVel * uAmpZ;",
+    "  float tw = position.y * s * uVel * uTwist;",
+    "  float dx = s * c * uVel * -0.05;",
+    "  vec3 d = position + vec3(dx, dy, dz + tw);",
+    "  gl_Position = projectionMatrix * modelViewMatrix * vec4(d,1.0);",
+    "}"
+  ].join("\n");
+
+  var FS = [
+    "precision highp float;",
+    "uniform sampler2D uMap;",
+    "uniform vec2 uScale;",
+    "varying vec2 vUv;",
+    "void main(){",
+    "  vec2 cv = (vUv - 0.5) * uScale + 0.5;",
+    "  vec4 bc = texture2D(uMap, cv);",
+    "  float luma = dot(bc.rgb, vec3(0.2126,0.7152,0.0722));",
+    "  vec3 gray = vec3(luma);",
+    "  vec3 sat = mix(gray, bc.rgb, 0.82);",
+    "  vec3 tone = sat * 1.02 + vec3(0.015);",
+    "  gl_FragColor = vec4(tone, bc.a);",
+    "}"
+  ].join("\n");
+
+  /* ── Shared uniforms (by reference) ── */
+  var uVel   = { value: 0 };
+  var uFreq  = { value: 1.15 };
+  var uAmpY  = { value: 0.48 };
+  var uAmpZ  = { value: 0.80 };
+  var uTwist = { value: 0.35 };
+
+  /* ── Geometry & dimension helpers ── */
+  var planeW, planeH, stride, totalW, halfW;
+  var meshes = [];
+  var geometry;
+
+  function vp() {
+    var rad = camera.fov * Math.PI / 180;
+    var h   = 2 * camera.position.z * Math.tan(rad / 2);
+    return { w: h * camera.aspect, h: h };
+  }
+
+  function dims() {
+    var v  = vp();
+    var portrait = camera.aspect < 1.1;
+    var maxW = v.w * (portrait ? 0.86 : 0.42);
+    var nomH = v.h * (portrait ? 0.35 : 0.40);
+    var nomW = nomH * PLANE_ASPECT;
+    planeW   = Math.min(nomW, maxW);
+    if (portrait && isTouch) planeW = maxW;
+    planeH   = planeW / PLANE_ASPECT;
+    stride   = planeW * (1 + GAP_RATIO);
+    totalW   = TOTAL * stride;
+    halfW    = totalW / 2;
+    var wl   = stride * 1.82;
+    uFreq.value  = (Math.PI * 2) / wl;
+    uAmpY.value  = planeH * 0.3;
+    uAmpZ.value  = planeH * 0.3;
+    uTwist.value = planeH * 0.08;
+  }
+
+  /* ── Build scene ── */
+  var loader = new THREE.TextureLoader();
+  var textures = [];
+
+  function build() {
+    meshes.forEach(function(m){ scene.remove(m); m.material.dispose(); });
+    meshes = [];
+    if (geometry) geometry.dispose();
+
+    dims();
+    geometry = new THREE.PlaneGeometry(planeW, planeH, 64, 16);
+
+    IMAGES.forEach(function(src, i) {
+      var tex = textures[i] || loader.load(
+        src,
+        function(loaded) {
+          var current = meshes[i];
+          if (current && current.userData.texture === loaded) updateImageScale(current.material, loaded);
+        }
+      );
+      textures[i] = tex;
+      tex.colorSpace = THREE.SRGBColorSpace;
+
+      function updateImageScale(mat, tex) {
+        if (tex.image) {
+          var ia = tex.image.width / tex.image.height;
+          if (ia > PLANE_ASPECT) mat.uniforms.uScale.value.set(PLANE_ASPECT / ia, 1);
+          else mat.uniforms.uScale.value.set(1, ia / PLANE_ASPECT);
+        }
+      }
+
+      var mat = new THREE.ShaderMaterial({
+        vertexShader: VS,
+        fragmentShader: FS,
+        side: THREE.DoubleSide,
+        transparent: true,
+        uniforms: {
+          uMap:   { value: tex },
+          uScale: { value: new THREE.Vector2(1, 1) },
+          uVel:   uVel,
+          uFreq:  uFreq,
+          uAmpY:  uAmpY,
+          uAmpZ:  uAmpZ,
+          uTwist: uTwist,
+        },
+      });
+
+      var mesh = new THREE.Mesh(geometry, mat);
+      updateImageScale(mat, tex);
+      mesh.frustumCulled = false;
+      mesh.userData = { isClickable: true, texture: tex, photoIndex: i }; // Save texture & index for lens effect & retro dialog
+      scene.add(mesh);
+      meshes.push(mesh);
+    });
+  }
+
+  /* ── Resize ── */
+  function onResize() {
+    var oldStride = stride;
+    var w = wrap.clientWidth, h = wrap.clientHeight;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    build();
+    if (oldStride && Number.isFinite(scrollOffset)) scrollOffset *= stride / oldStride;
+  }
+  window.addEventListener("resize", onResize);
+  onResize();
+
+  /* ── Scroll / drag input ── */
+  var scrollOffset = 0;
+  var velocity     = 0;
+  var smoothVel    = 0;
+  var dragging     = false;
+  var startX       = 0;
+  var startY       = 0;
+  var lastX        = 0;
+  var lastT        = 0;
+  var pointerDownTime = 0;
+  var dragVel      = 0;
+  var activePointer = null;
+  var maxDragDistance = 0;
+  var pauseUntil = 0;
+
+  wrap.addEventListener("wheel", function(e) {
+    e.preventDefault();
+    if(lensActive) return;
+    var d = (Math.abs(e.deltaX) > Math.abs(e.deltaY)) ? e.deltaX : e.deltaY;
+    velocity += d * 0.003;
+    pauseUntil = performance.now() + 3500;
+  }, { passive: false });
+
+  wrap.addEventListener("pointerdown", function(e) {
+    if(lensActive || activePointer !== null || (e.pointerType === "mouse" && e.button !== 0)) return;
+    activePointer = e.pointerId;
+    maxDragDistance = 0;
+    velocity = 0;
+    dragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    lastX = e.clientX;
+    lastT = performance.now();
+    pointerDownTime = performance.now();
+    dragVel = 0;
+    wrap.classList.add("dragging");
+    wrap.setPointerCapture(e.pointerId);
+  });
+  wrap.addEventListener("pointermove", function(e) {
+    if (!dragging || lensActive || e.pointerId !== activePointer) return;
+    var now = performance.now();
+    var dx  = e.clientX - lastX;
+    var dt  = Math.max(1, now - lastT) / 1000;
+    var distFromStart = Math.hypot(e.clientX - startX, e.clientY - startY);
+    maxDragDistance = Math.max(maxDragDistance, distFromStart);
+    var sensitivity = isTouch ? vp().w / wrap.clientWidth : 0.006;
+    scrollOffset -= dx * sensitivity;
+    dragVel += (-dx * sensitivity / dt - dragVel) * 0.3;
+    lastX = e.clientX;
+    lastT = now;
+  });
+  function endDrag(e) {
+    if (!dragging || e.pointerId !== activePointer) return;
+    dragging = false;
+    activePointer = null;
+    pauseUntil = performance.now() + 3500;
+    wrap.classList.remove("dragging");
+    velocity = e.type === "pointerup" ? Math.max(-1.8, Math.min(1.8, performance.now() - lastT < 120 ? dragVel : 0)) : 0;
+    if (wrap.hasPointerCapture(e.pointerId)) wrap.releasePointerCapture(e.pointerId);
+    
+    // Tap / Click recognition:
+    // Compound recognition of time and displacement:
+    // Touch: tolerance up to 18px displacement and duration < 350ms
+    // Mouse: tolerance up to 6px displacement and duration < 450ms
+    var duration = performance.now() - pointerDownTime;
+    var dist = Math.hypot(e.clientX - startX, e.clientY - startY);
+    var isPointerTouch = e.pointerType === "touch" || isTouch;
+    var maxDistTolerance = isPointerTouch ? 18 : 6;
+    var maxDuration = isPointerTouch ? 350 : 450;
+
+    var isTap = e.type === "pointerup" && dist <= maxDistTolerance && maxDragDistance <= maxDistTolerance && duration < maxDuration;
+    if(isTap) {
+      velocity = 0;
+      var rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ( (e.clientX - rect.left) / rect.width ) * 2 - 1;
+      pointer.y = - ( (e.clientY - rect.top) / rect.height ) * 2 + 1;
+      
+      raycaster.setFromCamera(pointer, camera);
+      var intersects = raycaster.intersectObjects(meshes);
+      if(intersects.length > 0) {
+        var clickedMesh = intersects[0].object;
+        if(clickedMesh.userData && clickedMesh.userData.texture) {
+          openLensOverlay(clickedMesh.userData.texture, clickedMesh.userData.photoIndex);
+        }
+      }
+    }
+  }
+  wrap.addEventListener("pointerup", endDrag);
+  wrap.addEventListener("pointercancel", endDrag);
+  wrap.addEventListener("lostpointercapture", endDrag);
+
+  /* ── Render loop ── */
+  var prevTime = performance.now();
+
+  function animate(time) {
+    requestAnimationFrame(animate);
+    var dt = Math.min(50, time - prevTime) / 1000;
+    prevTime = time;
+
+    // Gallery animation
+    if(!lensActive || lensTransitioning) {
+        if (!dragging && time > pauseUntil) {
+          scrollOffset += BASE_SPEED * dt;
+        }
+        if (!dragging) {
+          // Inertial velocity with smooth damping decay
+          var dampingFactor = isTouch ? 0.90 : 0.93;
+          scrollOffset += velocity * dt * 2;
+          velocity *= Math.pow(dampingFactor, dt * 60);
+          if (Math.abs(velocity) < 0.002) velocity = 0;
+
+          // Snap-to-center: smooth magnetic alignment to the nearest card center
+          if (Math.abs(velocity) < 0.25 && time <= pauseUntil) {
+            var nearestTarget = Math.round(scrollOffset / stride) * stride;
+            var snapDiff = nearestTarget - scrollOffset;
+            if (Math.abs(snapDiff) < 0.0005) {
+              scrollOffset = nearestTarget;
+            } else {
+              var snapStep = snapDiff * (1 - Math.pow(0.02, dt));
+              scrollOffset += snapStep;
+            }
+          }
+        }
+
+        var target = Math.max(-MAX_VEL, Math.min(MAX_VEL, (dragging ? dragVel : velocity) * 2));
+        smoothVel += (target - smoothVel) * (1 - Math.pow(0.92, dt * 60));
+        uVel.value = smoothVel;
+
+        for (var i = 0; i < TOTAL; i++) {
+          var raw = i * stride - scrollOffset;
+          var x   = ((raw % totalW) + totalW) % totalW;
+          if (x > halfW) x -= totalW;
+          meshes[i].position.x = x;
+        }
+
+        // Keep photo counter in sync with centered card
+        var activeIdx = Math.round(scrollOffset / stride) % TOTAL;
+        if (activeIdx < 0) activeIdx += TOTAL;
+        var counterEl = document.getElementById("counter");
+        if (counterEl) {
+          counterEl.textContent = (activeIdx + 1) + " / " + TOTAL + " Photos";
+        }
+
+        renderer.render(scene, camera);
+    }
+    
+    // Lens animation
+    if(lensActive) {
+      lensRender(time, dt);
+    }
+  }
+  requestAnimationFrame(animate);
+
+
+  /* ── LENS OVERLAY LOGIC ── */
+  var lensActive = false;
+  var lensTransitioning = false;
+  var lensRenderer, lensScene, lensCamera, lensMesh;
+  var lensUniforms;
+  var lensMouse = new THREE.Vector2();
+  var lensMouseEase = new THREE.Vector2();
+  
+  var lensOverlay = document.getElementById("lensOverlay");
+  var lensCanvasContainer = document.getElementById("lensCanvasContainer");
+  var lensCloseBtn = document.getElementById("lensCloseBtn");
+
+  var lensZoom = 1.0;
+  var baseImageW = 1.0;
+  var baseImageH = 1.0;
+  var lensPointers = new Map();
+  var initialPinchDist = 0;
+  var initialPinchZoom = 1.0;
+  var lensTouchStartX = 0;
+  var lensTouchStartY = 0;
+  var lensTouchStartTime = 0;
+  var lensMaxDeltaY = 0;
+  var isSwipingDown = false;
+  var lastTapTime = 0;
+  var lastTapX = 0;
+  var lastTapY = 0;
+  var zoomAnimReq = null;
+  var closeLensTimer = null;
+  var openLensTimer = null;
+
+  function closeLens() {
+    if (!lensActive) return;
+    if (closeLensTimer) {
+      clearTimeout(closeLensTimer);
+      closeLensTimer = null;
+    }
+    if (openLensTimer) {
+      clearTimeout(openLensTimer);
+      openLensTimer = null;
+    }
+    lensActive = false;
+    lensTransitioning = true;
+    lensOverlay.classList.remove("active");
+    stopStory();
+    if (typeof cancelPhotoTransition === "function") {
+      cancelPhotoTransition();
+    }
+    scrollOffset = storyState.photoIndex * stride;
+    velocity = 0;
+    pauseUntil = performance.now() + 3000;
+    closeLensTimer = setTimeout(function() {
+      closeLensTimer = null;
+      lensTransitioning = false;
+      resetLensZoom();
+    }, 400);
+  }
+
+  function resetLensZoom() {
+    if (zoomAnimReq) {
+      cancelAnimationFrame(zoomAnimReq);
+      zoomAnimReq = null;
+    }
+    lensZoom = 1.0;
+    applyLensZoom();
+  }
+
+  function applyLensZoom() {
+    if (!lensMesh || !lensUniforms) return;
+    var currentW = baseImageW * lensZoom;
+    var currentH = baseImageH * lensZoom;
+    lensMesh.scale.set(currentW, currentH, 1);
+    lensUniforms.u_meshSize.value.set(currentW, currentH);
+    // Adjust square size based on zoom to keep it relative to the image
+    lensUniforms.u_squareSize.value = 0.40 / Math.sqrt(lensZoom);
+    lensUniforms.u_lensDistortion.value = 0.7 * Math.min(2.0, lensZoom);
+  }
+
+  function animateLensZoom(targetZoom) {
+    if (zoomAnimReq) cancelAnimationFrame(zoomAnimReq);
+    var startZ = lensZoom;
+    var startTime = performance.now();
+    var duration = 240;
+    function step() {
+      var elapsed = performance.now() - startTime;
+      var progress = Math.min(1, elapsed / duration);
+      var ease = 1 - Math.pow(1 - progress, 3);
+      lensZoom = startZ + (targetZoom - startZ) * ease;
+      applyLensZoom();
+      if (progress < 1) {
+        zoomAnimReq = requestAnimationFrame(step);
+      } else {
+        zoomAnimReq = null;
+      }
+    }
+    zoomAnimReq = requestAnimationFrame(step);
+  }
+
+  lensCloseBtn.addEventListener("click", closeLens);
+
+  var LENS_VS = [
+    "precision highp float;",
+    "attribute vec3 position;",
+    "attribute vec2 uv;",
+    "uniform mat4 modelViewMatrix;",
+    "uniform mat4 projectionMatrix;",
+    "varying vec2 v_uv;",
+    "void main() {",
+    "  v_uv = uv;",
+    "  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);",
+    "}"
+  ].join("\n");
+  
+  var LENS_FS = [
+    "precision highp float;",
+    "uniform sampler2D u_texture1;",
+    "uniform sampler2D u_texture2;",
+    "uniform vec2 u_meshSize;",
+    "uniform vec2 u_textureSize1;",
+    "uniform vec2 u_textureSize2;",
+    "uniform vec2 u_mouse;",
+    "uniform float u_squareSize;",
+    "uniform float u_lensDistortion;",
+    "uniform float u_rgbShiftR;",
+    "uniform float u_rgbShiftG;",
+    "uniform float u_rgbShiftB;",
+    "uniform float u_waveFrequency;",
+    "uniform float u_waveStrength;",
+    "uniform float u_waveSpeed;",
+    "uniform float u_randomFrequency;",
+    "uniform float u_randomStrength;",
+    "uniform float u_randomSpeed;",
+    "uniform float u_time;",
+    "varying vec2 v_uv;",
+
+    "vec2 getCoverUv(vec2 uv, vec2 meshSize, vec2 textureSize) {",
+    "  vec2 meshRatio = vec2(meshSize.x / meshSize.y, meshSize.y / meshSize.x);",
+    "  vec2 textureRatio = vec2(textureSize.x / textureSize.y, textureSize.y / textureSize.x);",
+    "  vec2 resolutionRatio = vec2(",
+    "    min(meshRatio.x / textureRatio.x, 1.0),",
+    "    min(meshRatio.y / textureRatio.y, 1.0)",
+    "  );",
+    "  return (uv - 0.5) * resolutionRatio + 0.5;",
+    "}",
+
+    "float getCCLensScale(float distortion, float radius2) {",
+    "  if (distortion >= 0.0) {",
+    "    return 1.0 + distortion * radius2;",
+    "  }",
+    "  return 1.0 / (1.0 - distortion * radius2);",
+    "}",
+    
+    "vec2 getCCLensUv(vec2 uv, vec2 resolution, float distortion) {",
+    "  vec2 centeredUv = uv - 0.5;",
+    "  vec2 aspectScale = vec2(resolution.x / resolution.y, 1.0);",
+    "  vec2 centeredPosition = centeredUv * aspectScale;",
+    "  float radius2 = dot(centeredPosition, centeredPosition);",
+    "  float lensScale = getCCLensScale(distortion, radius2);",
+    "  vec2 distortedPosition = centeredPosition * lensScale;",
+    "  vec2 distortedCenteredUv = distortedPosition / aspectScale;",
+    "  vec2 distortedUv = distortedCenteredUv + 0.5;",
+    "  vec2 distortionOffset = distortedUv - uv;",
+    "  return uv - distortionOffset;",
+    "}",
+
+    "vec3 random3(vec3 c) {",
+    "  float j = 4096.0 * sin(dot(c, vec3(17.0, 59.4, 15.0)));",
+    "  vec3 r;",
+    "  r.z = fract(512.0 * j);",
+    "  j *= 0.125;",
+    "  r.x = fract(512.0 * j);",
+    "  j *= 0.125;",
+    "  r.y = fract(512.0 * j);",
+    "  return r - 0.5;",
+    "}",
+
+    "void main() {",
+    "  vec2 texture2Uv = getCoverUv(v_uv, u_meshSize, u_textureSize2);",
+    "  vec2 uvSquare = v_uv * 2.0 - 1.0;",
+    "  uvSquare -= u_mouse;",
+    "  vec2 squareAspectScale = vec2(min((u_meshSize.y / u_meshSize.x), 1.0), min((u_meshSize.x / u_meshSize.y), 1.0));",
+    "  uvSquare /= squareAspectScale;",
+    
+    "  float wave = sin(",
+    "    texture2Uv.y * u_waveFrequency",
+    "    + u_time * u_waveSpeed",
+    "  ) * u_waveStrength;",
+    "  texture2Uv.y += wave;",
+    "  texture2Uv += random3(",
+    "    vec3(texture2Uv * u_randomFrequency, u_time * u_randomSpeed)",
+    "  ).x * u_randomStrength;",
+    
+    "  float squareHalfSize = u_squareSize;",
+    "  float left = -squareHalfSize;",
+    "  float right = squareHalfSize;",
+    "  float bottom = -squareHalfSize;",
+    "  float top = squareHalfSize;",
+    "  float squareMask = step(left, uvSquare.x) * (1.0 - step(right, uvSquare.x)) * step(bottom, uvSquare.y) * (1.0 - step(top, uvSquare.y));",
+    
+    "  vec2 squareUv = uvSquare / (squareHalfSize * 2.0) + 0.5;",
+    "  vec2 distortedSquareUv = getCCLensUv(squareUv, vec2(1.0), u_lensDistortion);",
+    "  vec2 squareLensOffset = distortedSquareUv - squareUv;",
+    "  vec2 viewportLensOffset = squareLensOffset * squareHalfSize * squareAspectScale;",
+    "  vec2 lensTexture1Uv = getCoverUv(v_uv + viewportLensOffset, u_meshSize, u_textureSize1);",
+    "  vec2 rgbShiftDirection = (squareUv - 0.5) * 2.0;",
+    
+    "  float r = texture2D(u_texture1, lensTexture1Uv + rgbShiftDirection * u_rgbShiftR).r;",
+    "  float g = texture2D(u_texture1, lensTexture1Uv + rgbShiftDirection * u_rgbShiftG).g;",
+    "  float b = texture2D(u_texture1, lensTexture1Uv + rgbShiftDirection * u_rgbShiftB).b;",
+    "  vec4 insideColor = vec4(r, g, b, 1.0);",
+    
+    "  vec4 outsideColor = texture2D(u_texture2, texture2Uv);",
+    "  float gray = dot(outsideColor.rgb, vec3(0.299, 0.587, 0.114));",
+    "  outsideColor = vec4(vec3(gray), outsideColor.a);",
+    "  vec4 finalColor = mix(outsideColor, insideColor, squareMask);",
+    
+    "  gl_FragColor = finalColor;",
+    "}"
+  ].join("\n");
+
+  function initLensSystem() {
+    lensRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    lensRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    lensRenderer.outputColorSpace = THREE.SRGBColorSpace;
+    lensCanvasContainer.appendChild(lensRenderer.domElement);
+    
+    lensScene = new THREE.Scene();
+    lensCamera = new THREE.OrthographicCamera( -0.5, 0.5, 0.5, -0.5, 0.1, 100 );
+    lensCamera.position.set(0, 0, 5);
+
+    lensUniforms = {
+      u_texture1: { value: null },
+      u_texture2: { value: null },
+      u_meshSize: { value: new THREE.Vector2(1, 1) },
+      u_textureSize1: { value: new THREE.Vector2(1, 1) },
+      u_textureSize2: { value: new THREE.Vector2(1, 1) },
+      u_mouse: { value: new THREE.Vector2() },
+      u_squareSize: { value: 0.40 },
+      u_lensDistortion: { value: 0.7 },
+      u_rgbShiftR: { value: 0.02 },
+      u_rgbShiftG: { value: 0.0 },
+      u_rgbShiftB: { value: -0.02 },
+      u_waveFrequency: { value: 10 },
+      u_waveStrength: { value: 0.01 },
+      u_waveSpeed: { value: 1.0 },
+      u_randomFrequency: { value: 1.0 },
+      u_randomStrength: { value: 0.02 },
+      u_randomSpeed: { value: 0.2 },
+      u_time: { value: 0 }
+    };
+
+    var lensGeo = new THREE.PlaneGeometry(1, 1);
+    var lensMat = new THREE.RawShaderMaterial({
+      vertexShader: LENS_VS,
+      fragmentShader: LENS_FS,
+      uniforms: lensUniforms
+    });
+
+    lensMesh = new THREE.Mesh(lensGeo, lensMat);
+    lensScene.add(lensMesh);
+
+    window.addEventListener("resize", resizeLens);
+
+    function updateLensPointerPosition(e) {
+      if (!lensMesh) return;
+      var rect = lensCanvasContainer.getBoundingClientRect();
+      var isPointerTouch = e.pointerType === "touch" || isTouch;
+      // Touch Offset 60px: upward vertical offset so lens floats above fingertip
+      var touchOffsetY = isPointerTouch ? -60 : 0;
+      var targetY = e.clientY + touchOffsetY;
+
+      var halfW = lensMesh.scale.x / 2;
+      var halfH = lensMesh.scale.y / 2;
+      if (halfW <= 0 || halfH <= 0) return;
+
+      var normX = (e.clientX - rect.left - rect.width / 2) / halfW;
+      var normY = -(targetY - rect.top - rect.height / 2) / halfH;
+
+      lensMouse.set(
+        Math.max(-1, Math.min(1, normX)),
+        Math.max(-1, Math.min(1, normY))
+      );
+    }
+
+    function onLensPointerDown(e) {
+      if (e.target === lensCloseBtn || (pixelDialog && pixelDialog.contains(e.target))) return;
+      lensPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (lensPointers.size === 1) {
+        lensTouchStartX = e.clientX;
+        lensTouchStartY = e.clientY;
+        lensTouchStartTime = performance.now();
+        lensMaxDeltaY = 0;
+        isSwipingDown = false;
+        updateLensPointerPosition(e);
+      } else if (lensPointers.size === 2) {
+        var pts = Array.from(lensPointers.values());
+        initialPinchDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        initialPinchZoom = lensZoom;
+      }
+    }
+
+    function onLensPointerMove(e) {
+      if (e.target === lensCloseBtn || (pixelDialog && pixelDialog.contains(e.target))) return;
+      if (!lensPointers.has(e.pointerId)) return;
+      lensPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      // Pinch-to-zoom
+      if (lensPointers.size === 2) {
+        var pts = Array.from(lensPointers.values());
+        var currentDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        if (initialPinchDist > 5) {
+          var factor = currentDist / initialPinchDist;
+          lensZoom = Math.max(1.0, Math.min(3.0, initialPinchZoom * factor));
+          applyLensZoom();
+        }
+        return;
+      }
+
+      if (lensPointers.size === 1) {
+        updateLensPointerPosition(e);
+      }
+    }
+
+    function onLensPointerUp(e) {
+      if (e.target === lensCloseBtn || (pixelDialog && pixelDialog.contains(e.target))) return;
+      var isPointerTouch = e.pointerType === "touch" || isTouch;
+      var duration = performance.now() - lensTouchStartTime;
+      var dist = Math.hypot(e.clientX - lensTouchStartX, e.clientY - lensTouchStartY);
+      var dy = e.clientY - lensTouchStartY;
+      var dx = Math.abs(e.clientX - lensTouchStartX);
+
+      // Removed Swipe down gesture
+
+      // 2. Gesture: Tap recognition (click blank mask to exit, double tap to zoom)
+      var isTap = dist <= 18 && duration < 350;
+      if (isTap && lensMesh) {
+        var rect = lensCanvasContainer.getBoundingClientRect();
+        var clickDistX = Math.abs(e.clientX - (rect.left + rect.width / 2));
+        var clickDistY = Math.abs(e.clientY - (rect.top + rect.height / 2));
+        var halfImageW = lensMesh.scale.x / 2;
+        var halfImageH = lensMesh.scale.y / 2;
+        var isOutsideImage = clickDistX > halfImageW || clickDistY > halfImageH;
+
+        if (isOutsideImage) {
+          lensPointers.delete(e.pointerId);
+          return;
+        }
+
+        // Inside image: Double tap to quick zoom / restore
+        var now = performance.now();
+        var timeSinceLastTap = now - lastTapTime;
+        var distFromLastTap = Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY);
+        if (timeSinceLastTap < 350 && distFromLastTap < 35) {
+          if (lensZoom > 1.15) {
+            animateLensZoom(1.0);
+          } else {
+            animateLensZoom(2.0);
+          }
+          lastTapTime = 0;
+        } else {
+          lastTapTime = now;
+          lastTapX = e.clientX;
+          lastTapY = e.clientY;
+        }
+      }
+
+      lensPointers.delete(e.pointerId);
+      if (lensPointers.size < 2) {
+        initialPinchDist = 0;
+      }
+    }
+
+    lensOverlay.addEventListener("pointerdown", onLensPointerDown);
+    lensOverlay.addEventListener("pointermove", onLensPointerMove);
+    lensOverlay.addEventListener("pointerup", onLensPointerUp);
+    lensOverlay.addEventListener("pointercancel", onLensPointerUp);
+    lensOverlay.addEventListener("dblclick", function(e) {
+      if (e.target === lensCloseBtn || (pixelDialog && pixelDialog.contains(e.target))) return;
+      if (lensZoom > 1.15) {
+        animateLensZoom(1.0);
+      } else {
+        animateLensZoom(2.0);
+      }
+    });
+  }
+
+  function resizeLens() {
+    if (!lensRenderer) return;
+    var w = lensCanvasContainer.clientWidth, h = lensCanvasContainer.clientHeight;
+    lensRenderer.setSize(w, h);
+    lensCamera.left = -w / 2;
+    lensCamera.right = w / 2;
+    lensCamera.top = h / 2;
+    lensCamera.bottom = -h / 2;
+    lensCamera.updateProjectionMatrix();
+    
+    var ratio = 1.0;
+    if (lensUniforms.u_textureSize1.value.y > 0) {
+      ratio = lensUniforms.u_textureSize1.value.x / lensUniforms.u_textureSize1.value.y;
+    }
+    var isPortrait = h > w;
+    if (isTouch || w <= 768) {
+      baseImageW = Math.min(w * 0.94, (h - (isPortrait ? 180 : 220)) * ratio);
+      baseImageH = baseImageW / ratio;
+    } else {
+      baseImageW = Math.min(w * 0.88, (h - 240) * ratio);
+      baseImageH = baseImageW / ratio;
+    }
+    
+    // Shift mesh up slightly to make more room for dialog at bottom
+    var offsetY = isPortrait ? 0 : 50;
+    if (lensMesh) lensMesh.position.y = offsetY;
+
+    // Dynamically position dialog box
+    var dialog = document.getElementById("pixelDialog");
+    if (dialog) {
+      if (isPortrait) {
+        var bottomSpace = (h - baseImageH) / 2;
+        // Position at the middle of the bottom space, at least 1rem
+        dialog.style.bottom = Math.max(16, bottomSpace / 3 - 10) + "px";
+        dialog.style.transform = "translateX(-50%)"; // reset transform
+      } else {
+        dialog.style.bottom = "0.8rem";
+        dialog.style.transform = "translateX(-50%)"; 
+      }
+    }
+    applyLensZoom();
+  }
+
+  /* ── Retro RPG Pixel Dialogue System ── */
+  var GALLERY_STORIES = [
+    {
+      title: "ARCHIVE // 01 · My Memory",
+      lines: [
+        "我是艾维·劳森, 我的命运从出生便刻上了特殊的印记. 我与伊迪斯是劳森家背对背相连的连体姐妹",
+        "这份异于常人的模样让我们从降生起就被小镇居民判定活不长久",
+        "但父母怀抱着虔诚的信仰, 试图对抗这宿命.",
+        "不仅拼尽全力守护我们的生命, 还为我们赋予了专属的名字, 让我在冰冷的世俗目光中拥有了最初的温暖."
+      ]
+    },
+    {
+      title: "ARCHIVE // 02 · My Memory",
+      lines: [
+        "童年时我也曾拥有过家中的欢声笑语, 可这份美好终究抵不过外界的恶意, 周遭的试探从看似善意渐渐变成满怀恶意的引诱, 家中的沉默取代了笑语",
+        "周遭的试探从看似善意渐渐变成满怀恶意的引诱, 家中的沉默取代了笑语, 我们成了小镇上被窥探, 被排挤的异类.",
+        "..."
+      ]
+    },
+    {
+      title: "ARCHIVE // 03 · My Memory",
+      lines: [
+        "这也让我的心底生出了强烈的抗拒以及一个执拗的决定",
+        "与伊迪斯做分离手术, 挣脱连体的枷锁, 做一个平凡的普通人. 这份对自由的执念最终酿成了无法挽回的悲剧.",
+        "性格温柔的伊迪斯从未拒绝过我的任何要求, 即便知晓分离手术前路未卜, 仍点头应允.",
+        "可手术的结局却将我推入了无尽的深渊. 术后严重的创口感染夺走了伊迪斯的生命."
+      ]
+    },
+    {
+      title: "ARCHIVE // 04 · My Memory",
+      lines: [
+        "我虽侥幸活了下来, 却落下了随时可能被夺去生命的残疾.",
+        "也是在这时, 我第一次真正直视到伊迪斯的正脸. 而在伊迪斯的灵魂离开肉体时, 我竟近乎感受到了自己的死亡",
+        "巨大的荒诞与痛苦交织, 让我的心底留下了无法填补的空洞, 也让我从此背负上了待罪之人的枷锁.",
+        "每年的生日都成了我的恐惧日, 对伊迪斯的愧疚成了我余生无法摆脱的执念."
+      ]
+    },
+    {
+      title: "ARCHIVE // 05 · My Memory",
+      lines: [
+        "为了寻找填补内心亏空的方式, 也为了逃离满是回忆的故乡, 我选择远渡重洋, 前往新的学府求学.",
+        "绝望之中的新生, 让我爆发出了惊人的学术天分. 在异乡的校园里, 我不仅成绩出众, 还结识了一位与自己有着相似命运的友人."
+      ]
+    },
+    {
+      title: "ARCHIVE // 06 · My Memory",
+      lines: [
+        "友人醉心于精神疗愈领域, 而我却对灵魂学产生了超乎寻常的兴趣.",
+        "起初友人对我的研究充满不解, 可最终还是被我的执迷所打动, 从最初的不解转为真诚的激励, 甚至会从精神研究的角度为我的灵魂学研究提供药理性的技术支持."
+      ]
+    },
+    {
+      title: "ARCHIVE // 07 · My Memory",
+      lines: [
+        "然而随着灵魂学研究的不断深入, 我的身体与意识开始出现诡异的异变.",
+        "我患上了间歇性失忆症, 总是沉浸在怪异的梦境中."
+      ]
+    },
+    {
+      title: "ARCHIVE // 08 · My Memory",
+      lines: [
+        "在短暂的记忆罅隙里, 我竟体验到了跨越时间的奇妙感觉, 能从亘古遥远的瞬间轻巧灵活地跳跃到当下.",
+        "远古地球的繁茂原始植被, 水中矿石的独特气息, 都仿佛刚在我身边消散, 清晰又真切."
+      ]
+    },
+    {
+      title: "ARCHIVE // 09 · My Memory",
+      lines: [
+        "这是伊斯人的意识在与我的意识产生联结, 这份独特的体验让我更加坚信自己的研究方向是正确的",
+        "研究越深入, 我越迷失自我."
+      ]
+    },
+    {
+      title: "ARCHIVE // 10 · My Memory",
+      lines: [
+        "可惜这份美好并未持续太久, 友人完成学业后选择离开, 我的跨时空感受也随之日渐淡化.",
+        "直到一批文献残卷和一本日志的出现, 为我所有离奇的症状提供了完备的解释.",
+        "日志的记录者虽有着专业的学术素养, 可文字内容却在旁人看来如同疯言妄语"
+      ]
+    },
+    {
+      title: "ARCHIVE // 11 · My Memory",
+      lines: [
+        "一种极为古老的存在, 能在不同的空间与时间中自由穿行, 还会牢牢占据被附者的大脑和心智.",
+        "我会清晰地感受到自己化作了三眼异类, 人类的喉咙里发出粗野又无法理解的音节.",
+        "可我始终坚信这一切并非诅咒, 而是来自古老存在的珍贵馈赠"
+      ]
+    },
+    {
+      title: "ARCHIVE // 12 · My Memory",
+      lines: [
+        "在意识的融合与剥离中, 我与远古存在形成了独特的共生状态, 获得了操控时空的力量, 能撕开时空裂隙, 能分裂异质幻影.",
+        "昔日渴望平凡的少女, 最终化作了欧利蒂斯庄园的时空之影."
+      ]
+    },
+    {
+      title: "ARCHIVE // 13 · My Memory",
+      lines: [
+        "我的指尖捻开的是跨越维度的裂隙, 我的每一步前行都被命运的枷锁与自我的执念牢牢牵引, 最终在时空的迷雾中, 弄丢了最初的自己, 也永远失去了生命中最珍贵的陪伴.",
+        "Who are you?",
+        "I am you."
+      ]
+    }
+  ];
+
+  var pixelDialog = document.getElementById("pixelDialog");
+  var pixelDialogTitle = document.getElementById("pixelDialogTitle");
+  var pixelDialogStep = document.getElementById("pixelDialogStep");
+  var pixelDialogText = document.getElementById("pixelDialogText");
+  var pixelActionPrompt = document.getElementById("pixelActionPrompt");
+
+  var storyState = {
+    photoIndex: 0,
+    stepIndex: 0,
+    charIndex: 0,
+    isTyping: false,
+    timer: null
+  };
+
+  function getStoryForPhoto(idx) {
+    if (typeof idx === "number" && GALLERY_STORIES[idx]) {
+      return GALLERY_STORIES[idx];
+    }
+    var padIdx = (typeof idx === "number" && idx >= 0) ? (idx < 10 ? "0" + idx : "" + idx) : "??";
+    return {
+      title: "ARCHIVE // " + padIdx + " · 浮光记忆",
+      lines: [
+        "画面定格在时间长河的一瞬，泛起微弱的涟漪。",
+        "视线交汇的瞬间，所有静止的思绪重新流淌。",
+        "这是属于流光忽度与常青藤的永恒记录。"
+      ]
+    };
+  }
+
+  function updatePromptStatus() {
+    var story = getStoryForPhoto(storyState.photoIndex);
+    if (storyState.stepIndex < story.lines.length - 1) {
+      if (pixelActionPrompt) pixelActionPrompt.textContent = "NEXT ▼";
+    } else {
+      if (pixelActionPrompt) pixelActionPrompt.textContent = "FIN ■";
+    }
+  }
+
+  var audioCtx = null;
+  function playTypeSound() {
+    try {
+      if (!audioCtx) {
+        window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (window.AudioContext) audioCtx = new AudioContext();
+      }
+      if (audioCtx && audioCtx.state === 'running') {
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(300 + Math.random() * 150, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.8, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.03);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.03);
+      } else if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    } catch(e) {}
+  }
+
+  var storyStartTimer = null;
+
+  function renderStoryStep() {
+    if (storyState.timer) {
+      clearTimeout(storyState.timer);
+      storyState.timer = null;
+    }
+    var story = getStoryForPhoto(storyState.photoIndex);
+    var currentLine = story.lines[storyState.stepIndex] || "";
+
+    if (pixelDialogTitle) pixelDialogTitle.textContent = story.title;
+    if (pixelDialogStep) pixelDialogStep.textContent = (storyState.stepIndex + 1) + " / " + story.lines.length;
+    if (pixelDialogText) pixelDialogText.textContent = "";
+    storyState.charIndex = 0;
+    if (!currentLine) {
+      storyState.isTyping = false;
+      updatePromptStatus();
+      return;
+    }
+
+    storyState.isTyping = true;
+    if (pixelActionPrompt) pixelActionPrompt.textContent = "TYPING...";
+
+    function typeChar() {
+      if (!storyState.isTyping) return;
+      if (storyState.charIndex < currentLine.length) {
+        storyState.charIndex++;
+        if (pixelDialogText) {
+          pixelDialogText.textContent = currentLine.slice(0, storyState.charIndex);
+          if (currentLine[storyState.charIndex - 1].trim() !== "") {
+            playTypeSound();
+          }
+        }
+      }
+      if (storyState.charIndex < currentLine.length) {
+        storyState.timer = setTimeout(typeChar, 35);
+      } else {
+        storyState.isTyping = false;
+        storyState.timer = null;
+        updatePromptStatus();
+      }
+    }
+    typeChar();
+  }
+
+  function advanceStory() {
+    if (!lensActive || !pixelDialog || !pixelDialog.classList.contains("active") || isTransitioningPhoto) return;
+    var story = getStoryForPhoto(storyState.photoIndex);
+    var currentLine = story.lines[storyState.stepIndex] || "";
+
+    // 1. 若当前正在逐字打字（或文本尚未完全展示），用户轻触/点击立即快速完成本句输出
+    if (storyState.isTyping || (pixelDialogText && pixelDialogText.textContent !== currentLine)) {
+      if (storyState.timer) {
+        clearTimeout(storyState.timer);
+        storyState.timer = null;
+      }
+      storyState.isTyping = false;
+      if (pixelDialogText) {
+        pixelDialogText.textContent = currentLine;
+      }
+      storyState.charIndex = currentLine.length;
+      updatePromptStatus();
+      return;
+    }
+
+    // 2. 若当前句已输出完毕且不是最后一句，推进到下一段
+    if (storyState.stepIndex < story.lines.length - 1) {
+      storyState.stepIndex++;
+      renderStoryStep();
+      return;
+    }
+
+    // 3. 所有段落播放完毕后，扭曲跳转下一张
+    goToNextPhoto();
+  }
+
+  var isTransitioningPhoto = false;
+  var photoTransitionReq = null;
+
+  function cancelPhotoTransition() {
+    if (photoTransitionReq) {
+      cancelAnimationFrame(photoTransitionReq);
+      photoTransitionReq = null;
+    }
+    if (isTransitioningPhoto) {
+      isTransitioningPhoto = false;
+      if (lensUniforms) {
+        lensUniforms.u_lensDistortion.value = 0.7;
+        lensUniforms.u_rgbShiftR.value = 0.02;
+        lensUniforms.u_rgbShiftB.value = -0.02;
+        lensUniforms.u_waveStrength.value = 0.0;
+      }
+    }
+  }
+
+  function goToNextPhoto() {
+    if (isTransitioningPhoto) return;
+    isTransitioningPhoto = true;
+
+    stopStory();
+
+    var nextPhotoIndex = (storyState.photoIndex + 1) % IMAGES.length;
+    var nextMesh = meshes.find(function(m) { return m.userData && m.userData.photoIndex === nextPhotoIndex; });
+    var nextTex = (nextMesh && nextMesh.userData && nextMesh.userData.texture) ? nextMesh.userData.texture : textures[nextPhotoIndex];
+
+    if (!nextTex) {
+      isTransitioningPhoto = false;
+      return;
+    }
+
+    if (storyStartTimer) {
+      clearTimeout(storyStartTimer);
+      storyStartTimer = null;
+    }
+    storyStartTimer = setTimeout(function() {
+      storyStartTimer = null;
+      if (!lensActive) return;
+      startStory(nextPhotoIndex);
+    }, 800);
+
+    var duration = 600;
+    var startTime = performance.now();
+    var origDist = (lensUniforms && typeof lensUniforms.u_lensDistortion.value === 'number') ? lensUniforms.u_lensDistortion.value : 0.7;
+
+    function animateTransition(time) {
+      var progress = (time - startTime) / duration;
+      if (progress < 0.5) {
+        var p = progress * 2;
+        lensUniforms.u_lensDistortion.value = origDist - p * 2.0;
+        lensUniforms.u_rgbShiftR.value = 0.12 * p;
+        lensUniforms.u_rgbShiftB.value = -0.12 * p;
+        lensUniforms.u_waveStrength.value = p * 0.2;
+        photoTransitionReq = requestAnimationFrame(animateTransition);
+      } else if (progress < 1) {
+        if (lensUniforms.u_texture1.value !== nextTex) {
+           lensUniforms.u_texture1.value = nextTex;
+           lensUniforms.u_texture2.value = nextTex;
+           if(nextTex.image) {
+             lensUniforms.u_textureSize1.value.set(nextTex.image.width, nextTex.image.height);
+             lensUniforms.u_textureSize2.value.set(nextTex.image.width, nextTex.image.height);
+           }
+           resetLensZoom();
+           resizeLens();
+        }
+        var p = (1 - progress) * 2;
+        lensUniforms.u_lensDistortion.value = origDist - p * 2.0;
+        lensUniforms.u_rgbShiftR.value = 0.12 * p;
+        lensUniforms.u_rgbShiftB.value = -0.12 * p;
+        lensUniforms.u_waveStrength.value = p * 0.2;
+        photoTransitionReq = requestAnimationFrame(animateTransition);
+      } else {
+        lensUniforms.u_lensDistortion.value = origDist;
+        lensUniforms.u_rgbShiftR.value = 0.02;
+        lensUniforms.u_rgbShiftB.value = -0.02;
+        lensUniforms.u_waveStrength.value = 0.0;
+        photoTransitionReq = null;
+        isTransitioningPhoto = false;
+      }
+    }
+    photoTransitionReq = requestAnimationFrame(animateTransition);
+  }
+
+  function startStory(photoIdx) {
+    if (!lensActive) return;
+    if (storyStartTimer) {
+      clearTimeout(storyStartTimer);
+      storyStartTimer = null;
+    }
+    if (storyState.timer) {
+      clearTimeout(storyState.timer);
+      storyState.timer = null;
+    }
+    storyState.photoIndex = (typeof photoIdx === "number") ? photoIdx : 0;
+    storyState.stepIndex = 0;
+    storyState.charIndex = 0;
+    storyState.isTyping = false;
+    if (pixelDialog) {
+      pixelDialog.classList.add("active");
+    }
+    renderStoryStep();
+  }
+
+  function stopStory() {
+    if (storyStartTimer) {
+      clearTimeout(storyStartTimer);
+      storyStartTimer = null;
+    }
+    if (storyState.timer) {
+      clearTimeout(storyState.timer);
+      storyState.timer = null;
+    }
+    storyState.isTyping = false;
+    if (pixelDialog) {
+      pixelDialog.classList.remove("active");
+      if (pixelDialogText) pixelDialogText.textContent = "";
+      if (pixelDialogTitle) pixelDialogTitle.textContent = "";
+    }
+  }
+
+  if (pixelDialog) {
+    pixelDialog.addEventListener("click", function(e) {
+      e.stopPropagation();
+      advanceStory();
+    });
+    ["pointerdown", "pointerup", "pointermove", "touchstart", "touchend", "dblclick"].forEach(function(evt) {
+      pixelDialog.addEventListener(evt, function(e) {
+        e.stopPropagation();
+      });
+    });
+  }
+
+  function openLensOverlay(tex, photoIndex) {
+    if (closeLensTimer) {
+      clearTimeout(closeLensTimer);
+      closeLensTimer = null;
+    }
+    if (openLensTimer) {
+      clearTimeout(openLensTimer);
+      openLensTimer = null;
+    }
+    stopStory();
+    cancelPhotoTransition();
+    if (document.activeElement && typeof document.activeElement.blur === "function") {
+      document.activeElement.blur();
+    }
+    if(!lensRenderer) initLensSystem();
+
+    lensUniforms.u_texture1.value = tex;
+    lensUniforms.u_texture2.value = tex;
+    if(tex.image) {
+      lensUniforms.u_textureSize1.value.set(tex.image.width, tex.image.height);
+      lensUniforms.u_textureSize2.value.set(tex.image.width, tex.image.height);
+    }
+    
+    resetLensZoom();
+    resizeLens();
+    lensMouseEase.copy(isTouch ? new THREE.Vector2(0, 0.2) : pointer);
+    lensMouse.copy(lensMouseEase);
+
+    lensTransitioning = true;
+    lensOverlay.classList.add("active");
+    lensActive = true;
+    
+    if (storyStartTimer) {
+      clearTimeout(storyStartTimer);
+      storyStartTimer = null;
+    }
+    storyStartTimer = setTimeout(function() {
+      storyStartTimer = null;
+      if (!lensActive) return;
+      startStory(photoIndex);
+    }, 800);
+
+    openLensTimer = setTimeout(function() {
+      openLensTimer = null;
+      lensTransitioning = false;
+    }, 400);
+  }
+
+  window.__openPhoto = function(idx) {
+    var targetIdx = (typeof idx === "number" && idx >= 0 && idx < TOTAL) ? idx : 0;
+    var targetMesh = meshes.find(function(m) { return m.userData && m.userData.photoIndex === targetIdx; });
+    var targetTex = (targetMesh && targetMesh.userData && targetMesh.userData.texture) ? targetMesh.userData.texture : textures[targetIdx];
+    if (targetTex) {
+      openLensOverlay(targetTex, targetIdx);
+    }
+  };
+
+  function lensRender(time, dt) {
+    lensMouseEase.lerp(lensMouse, 1 - Math.pow(0.85, dt * 60));
+    lensUniforms.u_mouse.value.copy(lensMouseEase);
+    lensUniforms.u_time.value = time * 0.001;
+    lensRenderer.render(lensScene, lensCamera);
+  }
+
+  window.addEventListener("keydown", function(e) {
+    if (e.key === "Escape") {
+      if (lensActive) {
+        closeLens();
+      } else {
+        window.location.href = "./index.html";
+      }
+    } else if (lensActive && (e.key === " " || e.key === "Enter")) {
+      e.preventDefault();
+      if (e.repeat) return;
+      advanceStory();
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
